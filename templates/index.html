@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="HeaderDoctor — Free HTTP security header scanner. Analyze your website's security headers and get actionable recommendations.">
+    <title>HeaderDoctor - HTTP Header Security Scanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="logo">
+                    <span class="logo-icon">🛡️</span>
+                    HeaderDoctor
+                </h1>
+                <p class="tagline">Analyze and secure your website's HTTP headers</p>
+                <nav class="header-nav">
+                    <button id="dark-mode-toggle" class="dark-toggle" aria-label="Toggle dark mode"
+                        title="Toggle dark mode">🌙</button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <section class="scanner-section">
+                <div class="scanner-container">
+                    <div class="scan-history recent-scans">
+                        <h4>Recent Scans</h4>
+                        <div id="recent-scans-list" class="scan-history-list">
+                            <p class="no-history">No recent scans</p>
+                        </div>
+                    </div>
+
+                    <div class="scanner-card">
+                        <h2>Scan Your Website</h2>
+                        <p>Enter your website URL to analyze its HTTP security headers</p>
+
+                        <form id="scanner-form" class="scanner-form">
+                            <div class="input-group">
+                                <input type="url" id="url-input" placeholder="https://example.com" required
+                                    class="url-input">
+                                <button type="submit" class="scan-button" id="scan-button">
+                                    <span class="button-text">Scan Headers</span>
+                                    <div class="spinner" style="display: none;"></div>
+                                </button>
+                            </div>
+                            <div class="analysis-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="analyze-content" checked>
+                                    <span class="checkmark"></span>
+                                    Deep analysis: Scan page content, APIs, and features for better security
+                                    recommendations
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="bypass-cache">
+                                    <span class="checkmark"></span>
+                                    Force fresh scan (bypass cache)
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="scan-internal-urls">
+                                    <span class="checkmark"></span>
+                                    Scan internal URLs (requires permission - may take longer)
+                                </label>
+                            </div>
+
+                            <div class="advanced-injector-section">
+                                <details class="injector-details">
+                                    <summary>Advanced: Inject Custom Headers</summary>
+                                    <p class="text-muted" style="margin-top: 5px; font-size: 0.85em;">Test configuration
+                                        changes virtually before deploying them.</p>
+
+                                    <div id="injected-headers-list" class="injected-headers-list"></div>
+
+                                    <div class="injector-inputs">
+                                        <input type="text" id="inject-header-name"
+                                            placeholder="Header Name (e.g. Content-Security-Policy)"
+                                            class="inject-input name-input">
+                                        <input type="text" id="inject-header-value" placeholder="Header Value"
+                                            class="inject-input value-input">
+                                        <button type="button" id="add-inject-header-btn"
+                                            class="btn-secondary">Add</button>
+                                    </div>
+                                </details>
+                            </div>
+                        </form>
+
+                        <!-- Loading and Error Messages -->
+                        <div id="loading" class="loading" style="display: none;">
+                            <div class="loading-spinner"></div>
+                            <p>Analyzing headers...</p>
+                        </div>
+
+                        <div id="error" class="error" style="display: none;">
+                            <div class="error-icon">⚠️</div>
+                            <p class="error-message"></p>
+                        </div>
+                    </div>
+
+                    <div class="scan-history popular-scans">
+                        <h4>🏆 Top Scores</h4>
+                        <div id="top-scores-list" class="scan-history-list">
+                            <p class="no-history">Scan sites to see top scores</p>
+                        </div>
+                        <h4 style="margin-top: 16px;">Try These</h4>
+                        <div id="popular-scans-list" class="scan-history-list">
+                            <div class="history-item" data-url="https://github.com">
+                                <div class="history-url">github.com</div>
+                                <div class="history-meta">Example</div>
+                            </div>
+                            <div class="history-item" data-url="https://stackoverflow.com">
+                                <div class="history-url">stackoverflow.com</div>
+                                <div class="history-meta">Example</div>
+                            </div>
+                            <div class="history-item" data-url="https://google.com">
+                                <div class="history-url">google.com</div>
+                                <div class="history-meta">Example</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="results-section" class="results-section" style="display: none;">
+                <div class="results-header">
+                    <h2>Analysis Results</h2>
+                    <div class="scan-info">
+                        <div class="scan-item">
+                            <span class="scan-label">URL:</span>
+                            <span id="analyzed-url" class="scan-value">-</span>
+                        </div>
+                        <div class="scan-item">
+                            <span class="scan-label">Status:</span>
+                            <span id="status-code" class="scan-value">-</span>
+                        </div>
+                        <div class="scan-item">
+                            <span class="scan-label">Headers Found:</span>
+                            <span id="headers-found" class="scan-value">-</span>
+                        </div>
+                    </div>
+                    <div class="score-container">
+                        <div class="score-circle">
+                            <div class="score-value" id="score-value">0</div>
+                            <div class="score-grade" id="grade-value">-</div>
+                            <div class="score-label">Security Score</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Bar -->
+                <div id="export-bar" class="export-bar" style="display:none;">
+                    <span class="export-label">Export:</span>
+                    <button id="export-json-btn" class="export-btn">
+                        <span>📥</span> JSON
+                    </button>
+                    <button id="export-text-btn" class="export-btn">
+                        <span>📄</span> Text
+                    </button>
+                    <button id="export-pdf-btn" class="export-btn pdf-btn">
+                        <span>📊</span> PDF Report
+                    </button>
+                </div>
+
+                <!-- Category Scoring Section -->
+                <div id="category-scores" class="category-scores">
+                    <!-- Category scores will be dynamically populated here -->
+                </div>
+
+                <div class="results-grid">
+                    <div class="results-card">
+                        <h3>Present Headers</h3>
+                        <div id="present-headers" class="headers-list"></div>
+                    </div>
+
+                    <div class="results-card">
+                        <h3>Missing Headers</h3>
+                        <div id="missing-headers" class="headers-list"></div>
+                    </div>
+                </div>
+
+                <div id="content-analysis-section" class="content-analysis-section" style="display: none;">
+                    <h3>Content Analysis Results</h3>
+                    <div id="content-analysis-results" class="content-analysis-results"></div>
+                </div>
+
+                <div id="page-features-section" class="page-features-section" style="display: none;">
+                    <h3>Page Features Detected</h3>
+                    <div id="page-features-results" class="page-features-results"></div>
+                </div>
+
+                <div class="recommendations-section">
+                    <h3>Recommendations</h3>
+                    <div id="recommendations" class="recommendations-list"></div>
+                </div>
+
+                <div class="config-section">
+                    <h3>Server Configuration</h3>
+                    <div class="server-selector">
+                        <label for="server-type">Server Type:</label>
+                        <select id="server-type" class="server-select">
+                            <option value="nginx">NGINX</option>
+                            <option value="apache">Apache</option>
+                            <option value="iis">IIS</option>
+                        </select>
+                    </div>
+                    <div id="config-output" class="config-output"></div>
+                    <button id="copy-config-btn" class="copy-btn" style="display: none;">
+                        <span class="copy-icon">📋</span>
+                        Copy Configuration
+                    </button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 HeaderDoctor. Built for better web security.</p>
+        </div>
+    </footer>
+
+    <!-- Permission Modal for Internal URL Scanning -->
+    <div id="permission-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Internal URL Scanning Permission</h3>
+                <span class="modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="permission-info">
+                    <div class="permission-icon">🔍</div>
+                    <h4>Scan Internal Pages?</h4>
+                    <p>HeaderDoctor will discover and analyze internal pages of <strong id="target-domain"></strong> to
+                        provide comprehensive security insights.</p>
+
+                    <div class="permission-details">
+                        <h5>What we'll do:</h5>
+                        <ul>
+                            <li>✅ Discover internal links from the main page</li>
+                            <li>✅ Scan up to <strong>10 internal pages</strong></li>
+                            <li>✅ Analyze headers across multiple pages</li>
+                            <li>✅ Provide aggregated security recommendations</li>
+                        </ul>
+
+                        <h5>What we won't do:</h5>
+                        <ul>
+                            <li>❌ Access private/password-protected pages</li>
+                            <li>❌ Store or share your website data</li>
+                            <li>❌ Perform any destructive actions</li>
+                            <li>❌ Scan external/third-party sites</li>
+                        </ul>
+                    </div>
+
+                    <div class="permission-warning">
+                        <strong>⚠️ Important:</strong> Only scan websites you own or have permission to analyze. This
+                        may generate additional traffic to your site.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="permission-deny" class="btn btn-secondary">Cancel</button>
+                <button id="permission-allow" class="btn btn-primary">Allow Scanning</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=8"></script>
+
+    <!-- Toast notifications -->
+    <div id="toast-container" class="toast-container"></div>
+</body>
+
+</html>

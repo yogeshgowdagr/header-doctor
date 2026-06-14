@@ -1,0 +1,38 @@
+# Alternative lightweight Alpine-based Dockerfile
+FROM python:3.11-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache \
+    redis \
+    curl \
+    gcc \
+    musl-dev \
+    libxml2-dev \
+    libxslt-dev
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create startup script
+COPY docker-entrypoint-alpine.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Expose port
+EXPOSE 5000
+
+# Set environment variables
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=production
+ENV REDIS_URL=redis://localhost:6379
+
+# Use the startup script
+ENTRYPOINT ["docker-entrypoint.sh"]

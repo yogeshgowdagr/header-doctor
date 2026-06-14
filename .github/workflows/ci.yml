@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Test Docker build
+      run: |
+        docker build -t headerdoctor-test .
+        echo "Docker build successful"
+
+    - name: Test Alpine Docker build
+      run: |
+        docker build -f Dockerfile.alpine -t headerdoctor-alpine-test .
+        echo "Alpine Docker build successful"
+
+    - name: Test application startup
+      run: |
+        # Start Redis
+        sudo apt-get update
+        sudo apt-get install -y redis-server
+        redis-server --daemonize yes
+
+        # Test Python app
+        timeout 30s python app.py &
+        sleep 5
+        curl -f http://localhost:5000 || exit 1
+        echo "Application startup test successful"
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Lint Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile
+
+    - name: Lint Alpine Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile.alpine
