@@ -310,6 +310,9 @@ class HeaderDoctorApp {
         // Hide any internal results container
         this.hideInternalResults();
 
+        // Show Cloudflare block warning if detected
+        this.displayCloudflareStatus(data);
+
         const analysis = data.analysis;
 
         // Update main results
@@ -352,6 +355,41 @@ class HeaderDoctorApp {
         // Display content analysis if available
         if (data.content_analysis) {
             this.displayContentAnalysis(data.content_analysis);
+        }
+    }
+
+    displayCloudflareStatus(data) {
+        // Remove any existing cloudflare banner
+        const existing = document.getElementById('cloudflare-banner');
+        if (existing) existing.remove();
+
+        if (!data.cloudflare_blocked) return;
+
+        const info = data.cloudflare_info;
+        const banner = document.createElement('div');
+        banner.id = 'cloudflare-banner';
+        banner.className = 'cloudflare-banner';
+        banner.innerHTML = `
+            <div class="cf-banner-icon">🛡️</div>
+            <div class="cf-banner-content">
+                <h4>Cloudflare Protection Detected</h4>
+                <p>${this.escapeHtml(info.message)}</p>
+                <div class="cf-banner-meta">
+                    ${info.cf_ray ? `<span class="cf-ray">CF-Ray: ${this.escapeHtml(info.cf_ray)}</span>` : ''}
+                    <span class="cf-indicators">${info.indicators.map(i => `<span class="cf-tag">${i.replace(/_/g, ' ')}</span>`).join('')}</span>
+                </div>
+            </div>
+        `;
+
+        // Insert at top of results section
+        const resultsSection = document.getElementById('results-section');
+        if (resultsSection) {
+            const firstChild = resultsSection.querySelector('.results-header') || resultsSection.firstChild;
+            if (firstChild && firstChild.nextSibling) {
+                resultsSection.insertBefore(banner, firstChild.nextSibling);
+            } else {
+                resultsSection.prepend(banner);
+            }
         }
     }
 

@@ -1540,6 +1540,74 @@ body {
     font-size: 0.85rem;
 }
 
+/* Cloudflare Banner */
+.cloudflare-banner {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #f59e0b;
+    border-left: 4px solid #f59e0b;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    animation: slideIn 0.3s ease-out;
+}
+
+.cf-banner-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.cf-banner-content h4 {
+    margin: 0 0 4px 0;
+    color: #92400e;
+    font-size: 0.95rem;
+}
+
+.cf-banner-content p {
+    margin: 0 0 8px 0;
+    color: #78350f;
+    font-size: 0.85rem;
+}
+
+.cf-banner-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.cf-ray {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 0.75rem;
+    color: #92400e;
+    background: rgba(0, 0, 0, 0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.cf-tag {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 600;
+    background: rgba(245, 158, 11, 0.2);
+    color: #92400e;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+body.dark-mode .cloudflare-banner {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.1) 100%);
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+body.dark-mode .cf-banner-content h4 { color: #fbbf24; }
+body.dark-mode .cf-banner-content p { color: #fde68a; }
+body.dark-mode .cf-ray { color: #fde68a; background: rgba(0, 0, 0, 0.3); }
+body.dark-mode .cf-tag { color: #fde68a; background: rgba(245, 158, 11, 0.2); }
+
 /* Toast */
 .toast-container {
     position: fixed;

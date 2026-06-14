@@ -15,6 +15,12 @@ import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+try:
+    from curl_cffi import requests as cffi_requests
+    CFFI_AVAILABLE = True
+except ImportError:
+    CFFI_AVAILABLE = False
+
 load_dotenv()
 
 # --- Pretty CLI Logging ---
@@ -223,6 +229,55 @@ class HeaderAnalyzer:
             url = 'https://' + url
 
         try:
+            result = self._fetch_with_cffi(url)
+            if not result['success']:
+                return result
+
+            # Detect Cloudflare block
+            cloudflare_blocked = self._detect_cloudflare_block(result)
+            if cloudflare_blocked:
+                result['cloudflare_blocked'] = True
+                result['cloudflare_info'] = cloudflare_blocked
+
+            if analyze_content and 'content' not in result:
+                # Re-fetch with content if needed
+                pass
+
+            if analyze_content and result.get('content'):
+                result['content_analysis'] = self.analyze_page_content(result['content'], result.get('final_url', url))
+
+            return result
+        except Exception as e:
+            return {'error': str(e), 'success': False}
+
+    def _fetch_with_cffi(self, url):
+        """Fetch using curl_cffi with Chrome TLS impersonation"""
+        if CFFI_AVAILABLE:
+            try:
+                response = cffi_requests.get(
+                    url,
+                    timeout=15,
+                    allow_redirects=True,
+                    impersonate="chrome"
+                )
+                result = {
+                    'headers': dict(response.headers),
+                    'status_code': response.status_code,
+                    'final_url': str(response.url),
+                    'content': response.text,
+                    'success': True,
+                    'fetch_method': 'chrome_tls'
+                }
+                return result
+            except Exception as e:
+                logger.warning(f"curl_cffi failed, falling back to requests: {e}")
+
+        # Fallback to standard requests
+        return self._fetch_with_requests(url)
+
+    def _fetch_with_requests(self, url):
+        """Fallback fetch using standard requests library"""
+        try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -236,13 +291,10 @@ class HeaderAnalyzer:
                 'headers': dict(response.headers),
                 'status_code': response.status_code,
                 'final_url': response.url,
-                'success': True
+                'content': response.text,
+                'success': True,
+                'fetch_method': 'standard'
             }
-
-            if analyze_content:
-                result['content'] = response.text
-                result['content_analysis'] = self.analyze_page_content(response.text, response.url)
-
             return result
         except requests.exceptions.ConnectionError:
             return {'error': f'Could not connect to {url}. Check the URL and try again.', 'success': False}
@@ -250,6 +302,66 @@ class HeaderAnalyzer:
             return {'error': f'Request timed out after 15 seconds for {url}.', 'success': False}
         except requests.exceptions.RequestException as e:
             return {'error': str(e), 'success': False}
+
+    def _detect_cloudflare_block(self, result):
+        """Detect if the response is a Cloudflare challenge/block page"""
+        headers = result.get('headers', {})
+        content = result.get('content', '')
+        status = result.get('status_code', 0)
+
+        # Check for Cloudflare server header
+        server = headers.get('server', '').lower()
+        cf_ray = headers.get('cf-ray', '')
+        is_cloudflare = 'cloudflare' in server or cf_ray
+
+        if not is_cloudflare:
+            return None
+
+        # Check for challenge/block indicators
+        indicators = []
+
+        if status == 403:
+            indicators.append('access_denied')
+        elif status == 503:
+            indicators.append('challenge_page')
+
+        if content:
+            cf_signatures = [
+                ('Attention Required! | Cloudflare', 'attention_required'),
+                ('cf-browser-verification', 'browser_check'),
+                ('challenge-platform', 'challenge_platform'),
+                ('Just a moment...', 'waiting_room'),
+                ('cf-challenge-running', 'challenge_running'),
+                ('Checking your browser', 'browser_check'),
+                ('ray ID', 'ray_id_page'),
+            ]
+            for signature, indicator in cf_signatures:
+                if signature.lower() in content.lower():
+                    indicators.append(indicator)
+
+        if indicators:
+            return {
+                'blocked': True,
+                'cf_ray': cf_ray,
+                'indicators': indicators,
+                'message': self._get_cloudflare_message(indicators)
+            }
+
+        return None
+
+    def _get_cloudflare_message(self, indicators):
+        """Get human-readable Cloudflare block message"""
+        if 'access_denied' in indicators:
+            return 'Cloudflare blocked this request (403 Forbidden). The site has strict bot protection.'
+        elif 'challenge_page' in indicators or 'challenge_running' in indicators:
+            return 'Cloudflare is showing a JavaScript challenge. The site requires browser verification.'
+        elif 'browser_check' in indicators:
+            return 'Cloudflare Browser Integrity Check is active. The site verifies real browsers.'
+        elif 'waiting_room' in indicators:
+            return 'Cloudflare Waiting Room or Under Attack Mode is active.'
+        elif 'attention_required' in indicators:
+            return 'Cloudflare flagged this request. The site has aggressive bot protection.'
+        return 'Cloudflare protection detected. Response may not reflect actual site headers.'
 
     def analyze_page_content(self, html_content, base_url):
         """Analyze HTML content to find external resources and page features"""
@@ -1020,8 +1132,14 @@ def analyze():
             'analysis': analysis,
             'content_analyzed': analyze_content and content_analysis is not None,
             'timestamp': datetime.now().isoformat(),
-            'from_cache': False
+            'from_cache': False,
+            'fetch_method': result.get('fetch_method', 'standard'),
         }
+
+        # Add Cloudflare block info if detected
+        if result.get('cloudflare_blocked'):
+            response_data['cloudflare_blocked'] = True
+            response_data['cloudflare_info'] = result['cloudflare_info']
 
         # Add content analysis results if available
         if content_analysis and content_analysis.get('analysis_complete'):
