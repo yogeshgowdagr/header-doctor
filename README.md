@@ -40,6 +40,8 @@ A web tool designed to help developers manage and maintain HTTP headers in their
 4. **Access the application**:
    Open your browser and go to `http://localhost:5000`
 
+![alt text](image.png)
+
 ## Usage
 
 1. Enter a website URL in the input field
