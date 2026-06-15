@@ -483,7 +483,7 @@ class HeaderDoctorApp {
                                         <h4>🚨 Recommended Headers</h4>
                                         <div class="page-issues">
                                             ${analysis.recommendations.map(rec => `
-                                                <div class="recommendation-item">
+                                                <div class="recommendation-item expanded">
                                                     <div class="rec-header-row" title="Click to expand/collapse">
                                                         <h5>${rec.header}</h5>
                                                         <div class="severity-badge ${rec.severity}">${rec.severity.toUpperCase()}</div>
@@ -549,6 +549,23 @@ class HeaderDoctorApp {
                 </div>
             </div>
         `;
+
+        // Attach expand/collapse and copy handlers for internal results
+        internalContainer.addEventListener('click', (e) => {
+            const btn = e.target.closest('.copy-rec-btn');
+            if (btn) {
+                const text = btn.dataset.text;
+                if (text) {
+                    navigator.clipboard.writeText(text).then(() => this.showToast('Copied to clipboard!'));
+                }
+                return;
+            }
+            const header = e.target.closest('.rec-header-row');
+            if (header) {
+                const item = header.closest('.recommendation-item');
+                if (item) item.classList.toggle('expanded');
+            }
+        });
     }
 
     displayCategoryScores(categoryScores) {
